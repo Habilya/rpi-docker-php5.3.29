@@ -1,4 +1,4 @@
-FROM balenalib/rpi-raspbian:latest
+FROM balenalib/raspberrypi3-alpine:latest
 
 MAINTAINER Habilis
 
@@ -8,121 +8,105 @@ ENV PHP_DIR /usr/local/etc/php
 # Add libraries directory
 ADD ./lib /home/lib
 
-RUN apt-get update && apt-transport-https && \
-	apt-get install -y \
-		zip \
-		wget \
-		curl \
-		gnupg2 \
-		imagemagick \
-		ca-certificates \
-		librecode0 \
-		default-libmysqlclient-dev \
-		libsqlite3-0 \
-		libxml2 \
-		autoconf \
-		file \
-		g++ \
-		gcc \
-		libc-dev \
-		make \
-		pkg-config \
-		re2c \
-		autoconf2.13 \
-		libssl-dev \
-		libcurl4-openssl-dev \
-		libreadline6-dev \
-		librecode-dev \
-		libsqlite3-dev \
-		libxml2-dev \
-		libevent-dev \
-		libjpeg-dev \
-		libpng-dev \
-		xz-utils \
-		build-essential \
-		libgd3 \
-		libgd-dev \
-		mcrypt \
-		libmcrypt-dev \
-		libbz2-dev \
-		libffi-dev \
-		libglib2.0-dev \
-		libmagickcore-dev \
-		libmagickwand-dev \
-		libmysqlclient-dev \
-		libncurses-dev \
-		libpq-dev \
-		libreadline-dev \
-		libxslt-dev \
-		libyaml-dev \
-		zlib1g-dev \
-		tar \
-	--no-install-recommends \
-	&& apt-get clean \
-	&& rm -rf /var/lib/apt/lists/* \
-	&& mkdir -p /var/www \
-	&& chown -R www-data:www-data /var/www
+RUN set -x \
+        && addgroup -g 82 -S www-data \
+        && adduser -u 82 -D -S -G www-data www-data \
+        && mkdir -p /var/www \
+        && chown -R www-data:www-data /var/www \
+        && mkdir -p $PHP_DIR/conf.d \
+        && export CFLAGS="-fstack-protector-strong -fpic -fpie -O2" \
+                CPPFLAGS="-fstack-protector-strong -fpic -fpie -O2" \
+                LDFLAGS="-Wl,-O1 -Wl,--hash-style=both -pie" \
+        && apk update \
+        && apk add --update --no-cache --virtual .image-packages \
+                ca-certificates \
+                openrc \
+                curl \
+                tar \
+                xz \
+                zip \
+                wget
 
-RUN mkdir ~/.gnupg \
-	&& echo "disable-ipv6" >> ~/.gnupg/dirmngr.conf \
-	&& cd /usr/local/include \
-	&& ln -s /usr/include/arm-linux-gnueabihf/curl curl \
-	&& mkdir -p $PHP_DIR/conf.d
-	
+RUN apk add --update --no-cache --virtual .php-packages \
+                curl-dev \
+                libedit-dev \
+                libxml2-dev \
+                openssl-dev \
+                libpng-dev \
+                sqlite-dev \
+                gnupg \
+                openssl \
+                autoconf \
+                file \
+                g++ \
+                gcc \
+                libc-dev \
+                make \
+                pkgconf \
+                re2c
+
 WORKDIR /home/lib/
 
-RUN tar -xzf openssl-1.0.2k.tar.gz -C openssl --strip-components=1 \
-	&& cd openssl \
-	&& ./config --prefix=/usr/local --openssldir=/usr/local/openssl \
-	&& make && make install \
-	&& cd .. \
-	&& rm -rf openssl
+RUN mkdir -p /tmp/openssl \
+        && tar -xzf openssl-1.0.2k.tar.gz -C /tmp/openssl --strip-components=1 \
+        && cd /tmp/openssl \
+        && ./config --prefix=/usr/local --openssldir=/usr/local/openssl \
+        && make && make install \
+        && cd /home/lib/ \
+        && rm -rf /tmp/openssl
+
 
 # php 5.3 needs older autoconf
 # --enable-mysqlnd is included below because it's harder to compile after the fact the extensions are (since it's a plugin for several extensions, not an extension in itself)
 RUN mkdir -p /usr/src/php \
-	&& tar -xof php-5.3.29.tar.xz -C /usr/src/php --strip-components=1 \
-	&& cd /usr/src/php \
-	&& ./configure \
-		--prefix="$PHP_DIR" \
-		--sysconfdir="$PHP_DIR/conf.d" \
-		--with-config-file-path="$PHP_DIR/conf.d/php.ini" \
-		--with-config-file-scan-dir="$PHP_DIR/conf.d" \
-		--with-libdir=/lib/arm-linux-gnueabihf \
-		--enable-fpm \
-		--with-fpm-user=www-data \
-		--with-fpm-group=www-data \
-		--disable-cgi \
-		--enable-mysqlnd \
-		--with-mysql=/usr/bin/mysql_config \
-		--with-mysqli=/usr/bin/mysql_config \
-		--with-curl \
-		--with-openssl \
-		--with-openssl-dir=/usr/local/openssl \
-		--with-readline \
-		--with-recode \
-		--with-zlib \
-		--with-gd \
-		--with-freetype \
-		--enable-gd-native-ttf \
-	&& make -j"$(nproc)" \
-	&& make install \
-	&& { find /usr/local/bin /usr/local/sbin -type f -executable -exec strip --strip-all '{}' + || true; } \
-	&& apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false -o APT::AutoRemove::SuggestsImportant=false $buildDeps
+        && tar -xof php-5.3.29.tar.xz -C /usr/src/php --strip-components=1 \
+        && cd /usr/src/php \
+        && ./configure \
+                --prefix="$PHP_DIR" \
+                --sysconfdir="$PHP_DIR/conf.d" \
+                --with-config-file-path="$PHP_DIR/conf.d/php.ini" \
+                --with-config-file-scan-dir="$PHP_DIR/conf.d" \
+                --enable-fpm \
+                --with-fpm-user=www-data \
+                --with-fpm-group=www-data \
+                --disable-cgi \
+                --enable-ftp \
+                --enable-mbstring \
+                --enable-mysqlnd \
+                --with-curl \
+                --with-libedit \
+                --with-openssl \
+                --with-openssl-dir=/usr/local/openssl \
+                --with-zlib \
+                --with-gd \
+                --with-freetype \
+                --enable-gd-native-ttf \
+        && make -j "$(getconf _NPROCESSORS_ONLN)" \
+        && make install \
+        && { find /usr/local/bin /usr/local/sbin -type f -perm +0111 -exec strip --strip-all '{}' + || true; } \
+        && make clean \
+        && runDeps="$( \
+                scanelf --needed --nobanner --recursive /usr/local \
+                        | awk '{ gsub(/,/, "\nso:", $2); print "so:" $2 }' \
+                        | sort -u \
+                        | xargs -r apk info --installed \
+                        | sort -u \
+        )" \
+        && apk add --no-cache --virtual .php-rundeps $runDeps \
+        && apk del .php-packages
 
-COPY ./conf/php-fpm.conf /usr/local/etc/php/conf.d/php-fpm.conf
-COPY ./conf/php.ini /usr/local/etc/php/conf.d/php.ini
-
-RUN if [ ! -d /etc/init.d ]; then mkdir /etc/init.d; fi
-
+COPY ./config/php-fpm.conf /usr/local/etc/php/conf.d/php-fpm.conf
+COPY ./config/php.ini /usr/local/etc/php/conf.d/php.ini
+		
 RUN cp /usr/src/php/sapi/fpm/init.d.php-fpm /etc/init.d/php-fpm \
-	&& chmod 755 /etc/init.d/php-fpm \
-	&& chmod +x /etc/init.d/php-fpm \
-	&& update-rc.d php-fpm defaults \
-	&& cd /usr/src/php \
-	&& rm /usr/local/etc/php/conf.d/php-fpm.conf.default
+        && chmod 755 /etc/init.d/php-fpm \
+        && chmod +x /etc/init.d/php-fpm \
+        && rc-update add php-fpm default \
+        && rm /usr/local/etc/php/conf.d/php-fpm.conf.default \
+        && service php-fpm restart
 
-VOLUME /var/www
+VOLUME /usr/local/etc/php/conf.d/
+VOLUME /var/www/
 EXPOSE 9000
+CMD tail -F /usr/local/etc/php/var/log/php-fpm.log
 
-CMD service php-fpm restart && tail -F /var/log/php-fpm.log

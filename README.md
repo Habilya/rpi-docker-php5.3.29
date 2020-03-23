@@ -12,32 +12,31 @@ Check what is enabled in the **conf/php.ini**
 ## Installation
 
 You will need to have **git** and **docker** installed.
+
 ```
 sudo apt-get install git
-
 curl -fsSL https://get.docker.com -o get-docker.sh
 sudo sh get-docker.sh
 sudo usermod -aG docker [user_name]
+sudo apt-gget install docker-compose
 ```
 
 
-```
 # clone the repository
 git clone https://github.com/Habilya/rpi-docker-php5.3.29-fpm.git
 
-cd 
-
 # build a docker image
-docker build -t habilis/rpi-php:5.3-fpm .
+```
+cd rpi-docker-php5.3.29-fpm
+```
+Before building, feel free to edit the docker-compose.yml
 
-docker run --name php5_3 \
---restart unless-stopped \
--v /var/www:/var/www \
--p 9000:9000 \
--d habilis/rpi-php:5.3-fpm
-
-
+To build a container, run the following command:
+```
+docker-compose up -d
+```
 # in your webserver config use the php5.3 (php5_3 - is the name of container, should be resolved to the container's IP)
+```
 fastcgi_pass php5_3:9000;
 
 ```
