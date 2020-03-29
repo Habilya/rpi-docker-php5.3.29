@@ -4,10 +4,16 @@ This is a Dockerfile to build an image of PHP5.3.29-fpm
 
 This is needed to ~~support~~ rewrite legacy PHP apps depending on deprecated and removed functionality, such as:
 
-* register_globals
-* magic_quotes_gpc
+* **register_globals**
+* **magic_quotes_gpc**
 
-Check what is enabled in the **conf/php.ini**
+Check what is enabled in the **volumes/conf.d/php.ini**
+
+## Volumes
+
+You may use the volumes of the container in the `./volumes` directory
+* You may edit the configs in the `./volumes/conf.d` and restart the container
+* You may view the php-fpm log in the `./volumes/php-fpm-log`
 
 ## Installation
 
@@ -18,29 +24,41 @@ sudo apt-get install git
 curl -fsSL https://get.docker.com -o get-docker.sh
 sudo sh get-docker.sh
 sudo usermod -aG docker [user_name]
-sudo apt-gget install docker-compose
+sudo apt-get install docker-compose
 ```
 
 
-# clone the repository
+## Clone the repository
 git clone https://github.com/Habilya/rpi-docker-php5.3.29-fpm.git
 
-# build a docker image
+## Build a docker image
 ```
 cd rpi-docker-php5.3.29-fpm
 ```
-Before building, feel free to edit the docker-compose.yml
+Before building, feel free to edit:
+
+* Dockerfile (edit if running not on a Raspberry Pi)
+* docker-compose.yml
+* volumes/conf.d/php.ini
+* volumes/conf.d/php-fpm.conf
+
+This container runs under a non-privileged `www-data` user, you will have to have it in your host system, and set the permissions on thevolumes
+```
+sudo usermod -aG www-data [YOUR_USER]
+exec su -l $USER
+sudo chown www-data:www-data -R ./volumes
+sudo chmod 770 -R ./volumes
+```
 
 To build a container, run the following command:
 ```
+export WWWUNAME=www-data && WWWUID=$(id -u $WWWUNAME) && export WWWGID=$(id -g $WWWUNAME)
 docker-compose up -d
 ```
-# in your webserver config use the php5.3 (php5_3 - is the name of container, should be resolved to the container's IP)
+## Configure webserver NginX
 ```
-fastcgi_pass php5_3:9000;
-
+fastcgi_pass 127.0.0.1:9000;
 ```
-
 
 
 _Note : This was developed for a Raspberry Pi, should work just fine on any other OS._
@@ -48,13 +66,13 @@ _Note : This was developed for a Raspberry Pi, should work just fine on any othe
 Just change the
 
 ```
-FROM balenalib/rpi-raspbian:latest
+FROM balenalib/raspberrypi3-alpine:latest
 ```
 
 to something like
 
 ```
-FROM ubuntu:14.04
+FROM alpine:latest
 ```
 
 Please contribute.

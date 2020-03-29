@@ -5,14 +5,22 @@ MAINTAINER Habilis
 # /usr/local/etc/php/conf.d
 ENV PHP_DIR /usr/local/etc/php
 
+ARG UNAME
+ARG UID
+ARG GID
+
+ENV UNAME $UNAME
+ENV UID $UID
+ENV GID $GID
+
 # Add libraries directory
 ADD ./lib /home/lib
 
 RUN set -x \
-        && addgroup -g 82 -S www-data \
-        && adduser -u 82 -D -S -G www-data www-data \
+        && addgroup -g $GID -S $UNAME \
+        && adduser -u $UID -D -S -G $UNAME $UNAME \
         && mkdir -p /var/www \
-        && chown -R www-data:www-data /var/www \
+        && chown -R $UNAME:$UNAME /var/www \
         && mkdir -p $PHP_DIR/conf.d \
         && export CFLAGS="-fstack-protector-strong -fpic -fpie -O2" \
                 CPPFLAGS="-fstack-protector-strong -fpic -fpie -O2" \
@@ -22,10 +30,8 @@ RUN set -x \
                 ca-certificates \
                 openrc \
                 curl \
-                tar \
                 xz \
-                zip \
-                wget
+                zip
 
 RUN apk add --update --no-cache --virtual .php-packages \
                 curl-dev \
@@ -43,7 +49,9 @@ RUN apk add --update --no-cache --virtual .php-packages \
                 libc-dev \
                 make \
                 pkgconf \
-                re2c
+                re2c \
+                wget \
+                tar
 
 WORKDIR /home/lib/
 
@@ -95,18 +103,23 @@ RUN mkdir -p /usr/src/php \
         && apk add --no-cache --virtual .php-rundeps $runDeps \
         && apk del .php-packages
 
-COPY ./config/php-fpm.conf /usr/local/etc/php/conf.d/php-fpm.conf
-COPY ./config/php.ini /usr/local/etc/php/conf.d/php.ini
-		
+
 RUN cp /usr/src/php/sapi/fpm/init.d.php-fpm /etc/init.d/php-fpm \
         && chmod 755 /etc/init.d/php-fpm \
         && chmod +x /etc/init.d/php-fpm \
+        && chown -R $UNAME:$UNAME /etc/init.d/php-fpm \
+        && chown -R $UNAME:$UNAME /usr/local/etc/php \
         && rc-update add php-fpm default \
         && rm /usr/local/etc/php/conf.d/php-fpm.conf.default \
-        && service php-fpm restart
+        && rm -rf /home/lib/*
 
+
+VOLUME /usr/local/etc/php/var/log/
 VOLUME /usr/local/etc/php/conf.d/
 VOLUME /var/www/
 EXPOSE 9000
-CMD tail -F /usr/local/etc/php/var/log/php-fpm.log
+# Running container as the user created earlier
+USER $UNAME
+
+CMD service php-fpm restart && tail -F /usr/local/etc/php/var/log/php-fpm.log
 

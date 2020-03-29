@@ -1,13 +1,19 @@
-version: '2'
+version: '2.3'
 services:
 
   php5_3:
     container_name: php5_3
-    build: .
+    user: "${WWWUID}:${WWWGID}"
+    build:
+      context: .
+      args:
+        UNAME: ${WWWUNAME}
+        UID: ${WWWUID}
+        GID: ${WWWGID}
     restart: unless-stopped
     ports:
       - 9000:9000
     volumes:
       - /var/www:/var/www
       - ./volumes/conf.d:/usr/local/etc/php/conf.d
-
+      - ./volumes/php-fpm-log:/usr/local/etc/php/var/log
