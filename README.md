@@ -52,7 +52,7 @@ sudo chmod 770 -R ./volumes
 
 To build a container, run the following command:
 ```
-export WWWUNAME=www-data && WWWUID=$(id -u $WWWUNAME) && export WWWGID=$(id -g $WWWUNAME)
+export WWWUNAME=www-data && export WWWUID=$(id -u $WWWUNAME) && export WWWGID=$(id -g $WWWUNAME)
 docker-compose up -d
 ```
 ## Configure webserver NginX

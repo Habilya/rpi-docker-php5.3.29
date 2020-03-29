@@ -35,9 +35,14 @@ RUN set -x \
 
 RUN apk add --update --no-cache --virtual .php-packages \
                 curl-dev \
+		libjpeg-turbo \
+                libjpeg-turbo-dev \
+		freetype \
+                freetype-dev \
                 libedit-dev \
                 libxml2-dev \
                 openssl-dev \
+		libpng \
                 libpng-dev \
                 sqlite-dev \
                 gnupg \
@@ -81,6 +86,7 @@ RUN mkdir -p /usr/src/php \
                 --enable-ftp \
                 --enable-mbstring \
                 --enable-mysqlnd \
+		--with-mysqli=mysqlnd \
                 --with-curl \
                 --with-libedit \
                 --with-openssl \
@@ -88,6 +94,9 @@ RUN mkdir -p /usr/src/php \
                 --with-zlib \
                 --with-gd \
                 --with-freetype \
+		--with-freetype-dir=/usr/include \
+		--with-png-dir=/usr/include \
+		--with-jpeg-dir=/usr/include \
                 --enable-gd-native-ttf \
         && make -j "$(getconf _NPROCESSORS_ONLN)" \
         && make install \
@@ -122,4 +131,5 @@ EXPOSE 9000
 USER $UNAME
 
 CMD service php-fpm restart && tail -F /usr/local/etc/php/var/log/php-fpm.log
+
 
